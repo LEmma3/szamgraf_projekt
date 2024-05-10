@@ -1,0 +1,10 @@
+1. cylinder mesh hozááadása
+2. loop cut félbe, az alját scalelem kicsit nagyobbra, tetejét kicsit kisebbre, majd extrude, a tetejét megint kisebbre scalelem, extrude, scale kisebbre, extrude és még ezt ismétlem.
+3. cone mesh hozzáadása
+4. G-vel felfelé mozgatás a z tengely mentén, megnövelem scale-lel, az alján minden második csúcsot kijelöltem és G-vel kicsit felfelé mozgattam.
+5. circle mesh hozzáadása
+6. vertices 10-re állítása, kitöltés: triangle fan, minden második csúcs kijelölése, és scale lefelé (így már csillagnak néz ki), középpont kijelölése, G-vel mozgatás felfelé Z tengely mentén, Z-tengelyre tükrözés (így már egy egész csillag van és nem csak egy félbevágott), G-vel mozgatás felfelé Z tengely mentén
+7. UV sphere meshek hozzáadása
+8. scale kicsinyítés, majd elmozgatás tetszőleges helyre a fán
+9. cube mesh hozzáadása
+10. loop cuttal félbevágás, a tetejét scalelem nagyobbra kicsivel, és G-vel elmozgatom a tetejét lejjebb Z tengely mentén

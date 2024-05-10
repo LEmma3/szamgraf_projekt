@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="hu">
+<!-- Film: Pókember: A pókverzumon át, jelenet: Gwen meglátogatja Miles-t -->
+<head>
+    <meta charset=utf-8>
+    <title>Gwen meglátogatja Miles-t</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+        #hallgato {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 50%;
+            text-align: left;
+            z-index: 100;
+            display:block;
+            color: cyan;
+        }
+        #billentyu{
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            width: 50%;
+            text-align: right;
+            z-index: 100;
+            display:block;
+            color: cyan;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="hallgato">
+    Lőrincz Emma, EEUCFW, programtervező informatikus, 2023/24/1</div>
+
+<div id="billentyu">
+    <p>Használható billentyűk:<br/>
+        I (mint Ilona) - szöveges információ ki/be kapcsolása<br/>
+        W - focilabda felfelé gurul 1 egységgel<br/>
+        S - focilabda lefelé gurul 1 egységgel<br/>
+        A - focilabda balra gurul 1 egységgel<br/>
+        D - focilabda jobbra gurul 1 egységgel<br/>
+        P - pontfény ki/be kapcsolása<br/>
+        R - reflektorfény ki/be kapcsolása<br/>
+        N - nappali fények<br/>
+        E - éjszakai fények<br>
+        B - alap fények
+    </p>
+</div>
+
+<script async src="./dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+    "imports": {
+        "three": "./js-r154/build/three.module.js",
+        "trackballcontrols": "./js-r154/examples/jsm/controls/TrackballControls.js"
+    }
+}
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { TrackballControls } from 'trackballcontrols';
+    import {OBJLoader} from "./js-r154/examples/jsm/loaders/OBJLoader.js";
+
+    // Globális változók
+    let WIDTH, HEIGHT, aspectRatio;
+    let renderer;
+    let scene, camera;
+    let controls;
+    let groupBed, matrac;
+    let karacsonyfa;
+    let clock = new THREE.Clock();
+    let groupLamp;
+    let focilabda;
+
+    loader();
+    function loader(){
+        let loader = new OBJLoader();
+        loader.load(
+            // Forrás URL
+            './blender/karacsonyfa.obj',
+            // Modell betöltése utáni függvény
+            function ( loaded ) {
+                // A loaded egy THREE.Group objektum lesz, amelynek a gyermeke(i) a mesh(-ek)!
+                karacsonyfa = loaded;
+                karacsonyfa.scale.set( 0.6, 0.6, 0.6);
+                karacsonyfa.position.set(-8, 0.6, -7);
+
+                // Anyag hozzárendelés minden Mesh objektumhoz, ami a csoportban van
+                karacsonyfa.traverse( function (child ) {
+                    if ( child instanceof THREE.Mesh ) {
+                        console.log('mesh found in loaded group');
+                        child.material = new THREE.MeshPhongMaterial({color: 0xffffff});
+                        child.receiveShadow=true;
+                        child.castShadow=true;
+                    }
+                } );
+
+                init();
+            },
+            // Betöltés előrehaladása közben hívódik
+            function ( xhr ) {
+                console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+            },
+            // Hibás betöltés esetén
+            function ( error ) {
+                console.log( 'An error happened!', error.currentTarget.statusText, error.currentTarget.responseURL );
+            });
+    }
+
+    function init() {
+        // Böngésző ablakméret lekérése és méretarány számítása
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        aspectRatio = WIDTH / HEIGHT;
+
+        // Renderer létrehozása és DOM-hoz adása
+        renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setSize( WIDTH, HEIGHT );
+        renderer.setClearColor( 0x000000 );
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild( renderer.domElement );
+
+        // Színtér létrehozása
+        scene = new THREE.Scene();
+
+        // Kamera létrehozása és vetítési paramétereinek beállítása
+        camera = new THREE.PerspectiveCamera( 75, aspectRatio, 0.1, 1000 );
+        camera.position.set( 0, 10, 20 );
+        camera.lookAt( scene.position.x, scene.position.y, scene.position.z );
+
+        //Szöveges infó ki-be kapcsolás
+        let billentyuDiv = document.getElementById("billentyu");
+        let hallgatoDiv = document.getElementById("hallgato");
+
+
+        let isTextVisible = true;
+
+        function toggleTextVisibility() {
+            isTextVisible = !isTextVisible;
+            billentyuDiv.style.display = isTextVisible ? "block" : "none";
+            hallgatoDiv.style.display = isTextVisible ? "block" : "none";
+        }
+
+        // Event listener az 'I' betűnek
+        window.addEventListener("keydown", function (event) {
+            if (event.key === "i" || event.key === "I") {
+                toggleTextVisibility();
+            }
+        });
+
+        let xSpeed = 1;
+        let zSpeed = 1;
+
+        window.addEventListener("keydown", labdaAnimate);
+        function labdaAnimate(event) {
+            requestAnimationFrame(labdaAnimate);
+            let keyCode = event.which;
+            if (keyCode === 87) {
+                focilabda.position.z -= zSpeed;
+                focilabda.rotation.z -= zSpeed;
+            } else if (keyCode === 83) {
+                focilabda.position.z += zSpeed;
+                focilabda.rotation.z += zSpeed;
+            } else if (keyCode === 65) {
+               focilabda.position.x -= xSpeed;
+               focilabda.rotation.x -= xSpeed;
+            } else if (keyCode === 68) {
+                focilabda.position.x += xSpeed;
+                focilabda.rotation.x += xSpeed;
+            }
+        }
+
+        // Textúrázás
+        let textureLoader = new THREE.TextureLoader();
+        let nightstandTexture = textureLoader.load('./kepek/szekreny-textura.jpg');
+        let padloTexture = textureLoader.load('./kepek/padlo-textura.jpg');
+        let fociTexture = textureLoader.load('./kepek/foci-textura.jpg');
+        let fotelTexture = textureLoader.load('./kepek/fotel-textura.jpg');
+
+        // Objektumok létrehozása
+
+        scene.add(karacsonyfa);
+
+        // Talaj/padló
+        let groundGeometry = new THREE.PlaneGeometry( 25, 25 );
+        let groundMaterial = new THREE.MeshPhongMaterial( {
+            color: 0xe0835c,
+            wireframe: false,
+            side: THREE.DoubleSide
+        } );
+        groundMaterial.map = padloTexture;
+        let groundMesh = new THREE.Mesh( groundGeometry, groundMaterial );
+        groundMesh.rotation.x = THREE.MathUtils.degToRad( 90 );
+        groundMesh.scale.set(1, 1, 1);
+        groundMesh.receiveShadow = true;
+        scene.add( groundMesh );
+
+        //Focilabda
+        let focilabdaGeometry = new THREE.SphereGeometry(1, 35, 35);
+        let focilabdaMaterial = new THREE.MeshPhongMaterial({color: 0xffffff});
+        focilabda = new THREE.Mesh(focilabdaGeometry, focilabdaMaterial);
+        focilabdaMaterial.map = fociTexture;
+        focilabda.position.set(-9, 1, -2);
+        focilabda.receiveShadow=true;
+        focilabda.castShadow=true;
+        scene.add(focilabda);
+
+        //Fotel
+
+        let seatGeometry = new THREE.BoxGeometry(4, 1.5, 2);
+        let backrestGeometry = new THREE.BoxGeometry(4, 2, 0.5);
+        let armrestGeometry = new THREE.BoxGeometry(0.5, 2, 0.5);
+
+        let material = new THREE.MeshPhongMaterial({ color: 0x6F8FAF });
+        material.map = fotelTexture;
+
+        let seat = new THREE.Mesh(seatGeometry, material);
+        let backrest = new THREE.Mesh(backrestGeometry, material);
+        let armrest1 = new THREE.Mesh(armrestGeometry, material);
+        let armrest2 = new THREE.Mesh(armrestGeometry, material);
+
+        seat.position.set(3, 1.15, 10);
+        seat.scale.set(1.5, 1.5, 1.5);
+        seat.receiveShadow=true;
+        seat.castShadow=true;
+
+        backrest.position.set(3, 2, 11.8);
+        backrest.scale.set(1.5, 2, 1.5);
+        backrest.receiveShadow=true;
+        backrest.castShadow=true;
+
+        armrest1.position.set(6.2, 2.6, 10);
+        armrest1.rotation.set(Math.PI / 2, 0, 0);
+        armrest1.scale.set(1.5, 1.5, 1.5);
+        armrest1.receiveShadow=true;
+        armrest1.castShadow=true;
+
+
+        armrest2.position.set(-0.35, 2.6, 10);
+        armrest2.rotation.set(Math.PI/2,0 , 0);
+        armrest2.scale.set(1.5, 1.5, 1.5);
+        armrest2.receiveShadow=true;
+        armrest2.castShadow=true;
+
+        scene.add(seat, backrest, armrest1, armrest2);
+
+
+        //Ágy
+        groupBed = new THREE.Group();
+
+        let bedFrameGeometry = new THREE.BoxGeometry(2, 0.3, 5);
+        let bedFrameMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, wireframe: false });
+        let bedFrame = new THREE.Mesh(bedFrameGeometry, bedFrameMaterial);
+        bedFrame.position.set(9, 0.5, -6);
+        bedFrame.scale.set(5, 2);
+        bedFrame.rotation.y = THREE.MathUtils.degToRad( 90);
+        bedFrame.receiveShadow=true;
+        bedFrame.castShadow=true;
+        scene.add(bedFrame);
+        groupBed.add(bedFrame);
+
+        matrac = new THREE.Object3D();
+        let mattressGeometry = new THREE.BoxGeometry(2, 0.2, 5);
+        let mattressMaterial = new THREE.MeshPhongMaterial({ color: 0x3E3EA9, wireframe: false });
+        let mattress = new THREE.Mesh(mattressGeometry, mattressMaterial);
+        mattress.position.set(9, 1, -6)
+        mattress.scale.set(5, 2);
+        mattress.rotation.y = THREE.MathUtils.degToRad( 90);
+        mattress.receiveShadow=true;
+        mattress.castShadow=true;
+        matrac.add(mattress);
+        groupBed.add(matrac);
+        scene.add(groupBed);
+
+        let bedFrame2Geometry = new THREE.BoxGeometry(1, 2.5, 5);
+        let bedFrame2Material = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, wireframe: false });
+        let bedFrame2 = new THREE.Mesh(bedFrame2Geometry, bedFrame2Material);
+        bedFrame2.position.set(9, 1.3, -0.5)
+        bedFrame2.rotation.y = THREE.MathUtils.degToRad( 90);
+        bedFrame2.receiveShadow=true;
+        bedFrame2.castShadow=true;
+        scene.add(bedFrame2);
+        groupBed.add(bedFrame2);
+
+        let bedFrame3Geometry = new THREE.BoxGeometry(1, 2.5, 5);
+        let bedFrame3Material = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, wireframe: false });
+        let bedFrame3 = new THREE.Mesh(bedFrame3Geometry, bedFrame3Material);
+        bedFrame3.position.set(9, 1.3, -11.5)
+        bedFrame3.rotation.y = THREE.MathUtils.degToRad( 90);
+        bedFrame3.receiveShadow=true;
+        bedFrame3.castShadow=true;
+        scene.add(bedFrame3);
+        groupBed.add(bedFrame3);
+
+        scene.add(groupBed);
+
+        // Éjjeliszekrény
+
+        let nightstandAmb = new THREE.AmbientLight(0x404040, 1);
+        scene.add(nightstandAmb);
+
+        let nightstandGeometry = new THREE.BoxGeometry( 2, 2, 2 );
+        let nightstandMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff } );
+        nightstandMaterial.map = nightstandTexture;
+        let nightstand = new THREE.Mesh( nightstandGeometry, nightstandMaterial);
+        nightstand.scale.set(2, 2);
+        nightstand.position.set(3, 2, -11);
+        nightstand.receiveShadow=true;
+        nightstand.castShadow=true;
+        scene.add( nightstand );
+
+        let nightstandPl = new THREE.PointLight(0xFFC0CB, 1, 25);
+        nightstandPl.position.set(8, 10, -12);
+        scene.add(nightstandPl);
+
+        let pointlightOn = true;
+
+        function pointlightSwitch(){
+            pointlightOn = !pointlightOn;
+            nightstandPl.visible = pointlightOn;
+        }
+
+        window.addEventListener("keydown", function (event){
+            if (event.key === "p" || event.key === "P"){
+                pointlightSwitch();
+            }
+        })
+
+        let sphereSize = 2;
+        let pointLightHelper = new THREE.PointLightHelper( nightstandPl, sphereSize );
+        scene.add(pointLightHelper);
+
+
+        function createMiles() {
+            let group = new THREE.Group();
+
+            // Body
+            let bodyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 32);
+            let bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xcc0000, wireframe: false });
+            let body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.scale.set(2, 2, 2)
+            body.position.set(0, 3, -5)
+            body.receiveShadow=true;
+            body.castShadow=true;
+            group.add(body);
+
+            // Head
+            let headGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+            let headMaterial = new THREE.MeshPhongMaterial({ color: 0x8d5524, wireframe: false });
+            let head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 5.42, -5);
+            head.scale.set(3, 3, 3)
+            head.rotation.y = THREE.MathUtils.degToRad( 270 );
+            head.castShadow=true;
+            head.receiveShadow=true;
+            group.add(head);
+
+            // Arms
+            let leftArmGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let rightArmGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let armMaterial = new THREE.MeshPhongMaterial({ color: 0x8d5524, wireframe: false });
+            let leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
+            let rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
+            leftArm.position.set(-1.3, 3.5, -5);
+            rightArm.position.set(1.3, 3.5, -5);
+            leftArm.scale.set(1.5, 2);
+            rightArm.scale.set(1.5, 2);
+            leftArm.receiveShadow=true;
+            leftArm.castShadow=true;
+            rightArm.receiveShadow=true;
+            rightArm.castShadow=true;
+            group.add(leftArm);
+            group.add(rightArm);
+
+            // Legs
+            let leftLegGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let rightLegGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let legMaterial = new THREE.MeshPhongMaterial({ color: 0x8d5524, wireframe: false });
+            let leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
+            let rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
+            leftLeg.position.set(-0.5, 0.75, -5);
+            rightLeg.position.set(0.5, 0.75, -5);
+            leftLeg.scale.set(1.5, 1.5);
+            rightLeg.scale.set(1.5, 1.5);
+            rightLeg.castShadow=true;
+            rightLeg.receiveShadow=true;
+            leftLeg.castShadow=true;
+            leftLeg.receiveShadow=true;
+            group.add(leftLeg);
+            group.add(rightLeg);
+
+            return group;
+        }
+
+        let human = createMiles();
+        scene.add(human);
+
+        function createGwen() {
+            let group = new THREE.Group();
+
+            // Body
+            let bodyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 32);
+            let bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0xffffff, shininess: 100, side: THREE.FrontSide, wireframe: false });
+            let body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.scale.set(2, 2, 2)
+            body.position.set(-5, 3, 5.5)
+            body.receiveShadow=true;
+            body.castShadow=true;
+            group.add(body);
+
+            // Head
+            let headGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+            let headMaterial = new THREE.MeshPhongMaterial({ color: 0xffdbac, specular: 0xffffff, shininess: 100, side: THREE.FrontSide, wireframe: false });
+            let head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(-5, 5.42, 5.5);
+            head.scale.set(3, 3, 3)
+            head.castShadow=true;
+            head.receiveShadow=true;
+            group.add(head);
+
+            // Arms
+            let leftArmGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let rightArmGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let armMaterial = new THREE.MeshPhongMaterial({ color: 0xffdbac, specular: 0xffffff, shininess: 100, side: THREE.FrontSide, wireframe: false });
+            let leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
+            let rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
+            leftArm.position.set(-5, 3.5, 4.2);
+            rightArm.position.set(-5, 3.5, 6.8);
+            leftArm.scale.set(1.5, 2);
+            rightArm.scale.set(1.5, 2);
+            leftArm.rotation.y = THREE.MathUtils.degToRad( 90 );
+            rightArm.rotation.y = THREE.MathUtils.degToRad( 90 );
+            leftArm.receiveShadow=true;
+            leftArm.castShadow=true;
+            rightArm.receiveShadow=true;
+            rightArm.castShadow=true;
+            group.add(leftArm);
+            group.add(rightArm);
+
+            // Legs
+            let leftLegGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let rightLegGeometry = new THREE.CylinderGeometry(0.20, 0.20, 1, 32);
+            let legMaterial = new THREE.MeshPhongMaterial({ color: 0xffdbac, specular: 0xffffff, shininess: 100, side: THREE.FrontSide, wireframe: false });
+            let leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
+            let rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
+            leftLeg.position.set(-5, 0.75, 5);
+            rightLeg.position.set(-5, 0.75, 6);
+            leftLeg.rotation.y = THREE.MathUtils.degToRad( 90 );
+            rightLeg.rotation.y = THREE.MathUtils.degToRad( 90 );
+            leftLeg.scale.set(1.5, 1.5);
+            rightLeg.scale.set(1.5, 1.5);
+            rightLeg.castShadow=true;
+            rightLeg.receiveShadow=true;
+            leftLeg.castShadow=true;
+            leftLeg.receiveShadow=true;
+            group.add(leftLeg);
+            group.add(rightLeg);
+
+            return group;
+        }
+
+        let gwen = createGwen();
+        scene.add(gwen);
+
+        let spotGwen = new THREE.SpotLight(0x0000FF, 2, 15, THREE.MathUtils.degToRad(15), 0.5);
+        spotGwen.position.set(-10, 7, 10);
+        spotGwen.target = gwen;
+        scene.add(spotGwen);
+
+        let spotlightHelper = new THREE.SpotLightHelper(spotGwen, 0xffffff);
+        scene.add(spotlightHelper);
+
+        let spotlightOn = true;
+
+        function spotlightSwitch(){
+            spotlightOn = !spotlightOn;
+            spotGwen.visible = spotlightOn;
+        }
+
+        window.addEventListener("keydown", function (event){
+            if (event.key === "R" || event.key === "r"){
+                spotlightSwitch();
+            }
+        });
+
+        //Állólámpa
+        groupLamp = new THREE.Group();
+
+        let lampLegGeometry =  new THREE.CylinderGeometry(0.5, 0.5, 0.5, 32);
+        let lampLegMaterial =  new THREE.MeshPhongMaterial({ color: 0xacabb3, wireframe: false });
+        let lampLeg = new THREE.Mesh(lampLegGeometry, lampLegMaterial);
+        lampLeg.position.set(10, 0.4, 10);
+        lampLeg.scale.set(1.5, 1.5, 1.5);
+        lampLeg.receiveShadow = true;
+        lampLeg.castShadow = true;
+        scene.add(lampLeg);
+        groupLamp.add(lampLeg);
+
+        let lampheadGeometry = new THREE.CylinderGeometry(1, 0.5, 1, 32);
+        let lampheadMaterial =  new THREE.MeshPhongMaterial({ color: 0xffff00, wireframe: false });
+        let lamphead = new THREE.Mesh(lampheadGeometry, lampheadMaterial);
+        lamphead.position.set(10, 7, 10);
+        lamphead.scale.set(1.2, 1.2, 1.2);
+        lamphead.receiveShadow = true;
+        lamphead.castShadow = true;
+        scene.add(lamphead);
+        groupLamp.add(lamphead);
+
+        let bulbGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        let bulbMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: false });
+        let bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+        bulb.position.set(10, 7.6, 10);
+        bulb.scale.set(1, 1 ,1);
+        bulb.receiveShadow = true;
+        bulb.castShadow = true;
+        scene.add(bulb);
+        groupLamp.add(bulb);
+
+        let lampGeometry = new THREE.CylinderGeometry(0.3, 0.3, 5, 32);
+        let lampMaterial = new THREE.MeshPhongMaterial({ color: 0xacabb3, wireframe: false });
+        let rod = new THREE.Mesh(lampGeometry, lampMaterial);
+        rod.position.set(10, 3.31, 10);
+        rod.scale.set(1, 1, 1);
+        rod.receiveShadow = true;
+        rod.castShadow = true;
+        scene.add(rod);
+        groupLamp.add(rod);
+
+        let coneGeometry = new THREE.ConeGeometry(3, 6, 16 );
+        let coneMaterial = new THREE.MeshPhongMaterial( { color: 0xacabb3, wireframe: false } );
+        let coneMesh = new THREE.Mesh( coneGeometry, coneMaterial );
+        coneMesh.position.set(10, 5.8, 10);
+        coneMesh.scale.set(0.2, 0.2, 0.2);
+        coneMesh.rotation.x = THREE.MathUtils.degToRad(180);
+        coneMesh.receiveShadow = true;
+        coneMesh.castShadow = true;
+        scene.add( coneMesh );
+        groupLamp.add(coneMesh);
+
+        scene.add(groupLamp);
+
+        //Könyvespolc
+
+        let bookshelfGeometry = new THREE.BoxGeometry(4, 0.5, 2);
+        let bookshelfMaterial = new THREE.MeshPhongMaterial({ color: 0x654321, wireframe: false });
+        let bookshelfMesh = new THREE.Mesh(bookshelfGeometry, bookshelfMaterial);
+        bookshelfMesh.scale.set(3, 2, 3);
+        bookshelfMesh.rotation.z = THREE.MathUtils.degToRad(90);
+        bookshelfMesh.position.set(12, 6, 4.5);
+        bookshelfMesh.castShadow = true;
+        bookshelfMesh.receiveShadow = true;
+        scene.add(bookshelfMesh);
+
+        let iranyitott = new THREE.DirectionalLight(0x00ff00, 1);
+        iranyitott.position.set(20, 15, -5);
+        iranyitott.target = bookshelfMesh;
+        iranyitott.castShadow = true;
+        scene.add(iranyitott);
+
+        //puff
+        let puffGeometry = new THREE.CylinderGeometry(2, 2, 2, 32);
+        let puffMaterial = new THREE.MeshPhongMaterial({ color: 0xcdb4db });
+        let puff = new THREE.Mesh(puffGeometry, puffMaterial);
+        puff.position.set(-8, 1, 10);
+        puff.castShadow = true;
+        puff.receiveShadow = true;
+        scene.add(puff);
+
+        //Nappal
+
+        let windowLight = new THREE.PointLight(0xedd59e, 1, 200);
+        windowLight.position.set(0, 10, 15 );
+        windowLight.visible = false;
+        windowLight.castShadow = true;
+        scene.add(windowLight);
+
+        let wsphereSize = 1;
+        let pointLightHelper2 = new THREE.PointLightHelper(windowLight, wsphereSize);
+        scene.add(pointLightHelper2);
+
+        let windowLight2 = new THREE.PointLight(0xedd59e, 1, 200);
+        windowLight2.position.set(-15, 10, 0);
+        windowLight2.visible = false;
+        windowLight2.castShadow = true;
+        scene.add(windowLight2);
+
+        let w2sphereSize = 1;
+        let pointLightHelper3 = new THREE.PointLightHelper(windowLight2, w2sphereSize);
+        scene.add(pointLightHelper3);
+
+        function windowLightsSwitch(){
+            iranyitott.visible = false;
+            nightstandPl.visible = false;
+            spotGwen.visible = false;
+            windowLight.visible = true;
+            windowLight2.visible = true;
+            lampLight.visible = false;
+            christmasLight.visible = false;
+        }
+
+        window.addEventListener("keydown", function (event){
+            if (event.key === "n" || event.key === "N"){
+                windowLightsSwitch();
+            }
+            if (event.key === "e" || event.key === "E"){
+                nightLightsSwitch();
+            }
+            if (event.key === "b" || event.key ==="B"){
+                baseLight();
+            }
+        });
+
+        //Éjszaka
+        let lampLight = new THREE.PointLight(0xfbf7e3, 1, 100);
+        lampLight.position.set(11, 10, 15);
+        lampLight.castShadow = true;
+        lampLight.visible = false;
+        scene.add(lampLight);
+
+        let w3sphereSize = 1;
+        let lampLightHelper = new THREE.PointLightHelper(lampLight, w3sphereSize);
+        scene.add(lampLightHelper);
+
+        let christmasLight = new THREE.DirectionalLight( 0xe52222, 0.5 );
+        christmasLight.position.set(-15, 15, -15);
+        christmasLight.target = karacsonyfa;
+        christmasLight.castShadow = true;
+        christmasLight.visible = false;
+        scene.add(christmasLight);
+
+        let planeSize2 = 1.0;
+        let christmasLightHelper = new THREE.DirectionalLightHelper(christmasLight, planeSize2);
+        scene.add(christmasLightHelper);
+
+        function nightLightsSwitch(){
+            iranyitott.visible = false;
+            nightstandPl.visible = false;
+            spotGwen.visible = false;
+            windowLight.visible = false;
+            windowLight2.visible = false;
+            lampLight.visible = true;
+            christmasLight.visible = true;
+        }
+
+        function baseLight(){
+            iranyitott.visible = true;
+            nightstandPl.visible = true;
+            spotGwen.visible = true;
+            windowLight.visible = false;
+            windowLight2.visible = false;
+            lampLight.visible = false;
+            christmasLight.visible = false;
+        }
+
+        // Az ablak későbbi átméretezése esetén visszahívható függvény megadása
+        window.addEventListener( 'resize', handleWindowResize, false );
+
+        // Kamera vezérlés
+        controls = new TrackballControls( camera, renderer.domElement );
+        controls.rotateSpeed = 5.0;
+        controls.panSpeed = 1.0;
+
+        animate();
+        animateLamp();
+        labdaAnimate();
+    }
+
+    function handleWindowResize() {
+        // Az ablak átméretezése esetén a kamera vetítési paraméterek újraszámolása
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        console.log( 'WIDTH=' + WIDTH + '; HEIGHT=' + HEIGHT );
+        renderer.setSize( WIDTH, HEIGHT );
+        aspectRatio = WIDTH / HEIGHT;
+        camera.aspect = aspectRatio;
+        camera.updateProjectionMatrix();
+
+        render();
+    }
+
+
+    function animate() {
+        // Újabb képkocka rajzolásának kérése.
+        // Maximálisan 60 FPS-t biztosít a rendszer.
+        requestAnimationFrame( animate );
+
+        groupBed.rotation.z += 0.005;
+
+        if (typeof animate.isMovingForward === 'undefined') {
+            animate.isMovingForward = true;
+        }
+
+        // Két pozíció között oda-vissza mozgatás
+        if (animate.isMovingForward) {
+            groupBed.position.x -= 0.05;
+            groupBed.position.y -= 0.05;
+
+            groupBed.scale.x += 0.01;
+            groupBed.scale.z += 0.01;
+
+            matrac.scale.x -= 0.01;
+            matrac.scale.y -= 0.01;
+            matrac.scale.z -= 0.01;
+
+        } else {
+            groupBed.position.x += 0.05;
+            groupBed.position.y += 0.05;
+
+            groupBed.scale.x -= 0.01;
+            groupBed.scale.z -= 0.01;
+
+            matrac.scale.x += 0.01;
+            matrac.scale.y += 0.01;
+            matrac.scale.z += 0.01;
+        }
+
+        // Ha elérte a legboldalibb pozíciót
+        if (groupBed.position.x < -5) {
+            animate.isMovingForward = false;
+        }
+
+        // Ha elérte a legjobboldalibb pozíciót
+        if (groupBed.position.x > 5) {
+            animate.isMovingForward = true;
+        }
+
+        // Kameramozgás vezérlése
+        controls.update();
+        // Új képkocka rajzolása
+        render();
+    }
+
+    function animateLamp() {
+        let lampSpeed = 0.5;
+        let delta = clock.getDelta();
+
+        // a sinus függvény alapján mozgatjuk a lámpát
+        groupLamp.position.z = Math.sin(clock.elapsedTime * lampSpeed) * 3;
+
+        requestAnimationFrame(animateLamp);
+
+        controls.update(delta);
+        render();
+    }
+
+    function render() {
+        // 3D -> 2D vetített kép kiszámítása.
+        // scene 3D színtér képe a camera kamera szemszögéből.
+        renderer.render( scene, camera );
+    }
+</script>
+</body>
+</html>
